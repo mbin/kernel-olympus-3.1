@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/usb/otg.h>
 
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
@@ -170,6 +171,7 @@ struct cpcap_usb_det_data {
 	struct cpcap_device *cpcap;
 	struct delayed_work work;
 	struct workqueue_struct *wq;
+	struct cpcap_whisper_pdata *pdata;
 	unsigned short sense;
 	unsigned short prev_sense;
 	enum cpcap_det_state state;
@@ -190,6 +192,7 @@ struct cpcap_usb_det_data {
 	short whisper_auth;
 	bool hall_effect_connected;
 	enum cpcap_irqs irq;
+	struct otg_transceiver *otg;
 };
 
 static const char *accy_devices[] = {
@@ -466,6 +469,21 @@ static int configure_hardware(struct cpcap_usb_det_data *data, enum cpcap_accy a
 
 	switch (accy) {
 	case CPCAP_ACCY_USB:
+		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
+					     CPCAP_BIT_VBUSPD);
+		gpio_set_value(data->pdata->data_gpio, 1);
+		if (data->otg)
+			raw_notifier_call_chain((void *)&data->otg->notifier.head,
+						     USB_EVENT_VBUS, NULL);
+		break;
+	case CPCAP_ACCY_USB_DEVICE:
+		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
+					     CPCAP_BIT_VBUSPD);
+		gpio_set_value(data->pdata->data_gpio, 1);
+		if (data->otg)
+			raw_notifier_call_chain((void *)&data->otg->notifier.head,
+						     USB_EVENT_ID, NULL);
+		break;
 	case CPCAP_ACCY_FACTORY:
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
 					     CPCAP_BIT_VBUSPD);
@@ -1219,17 +1237,19 @@ static int cpcap_usb_det_probe(struct platform_device *pdev)
 {
 	int retval;
 	struct cpcap_usb_det_data *data;
-
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 	if (pdev->dev.platform_data == NULL) {
 		dev_err(&pdev->dev, "no platform_data\n");
 		return -EINVAL;
 	}
-
+	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
-	data->cpcap = pdev->dev.platform_data;
+	printk(KERN_INFO "pICS_%s: step 3...\n",__func__);
+	//data->cpcap = pdev->dev.platform_data;
+	data->cpcap = platform_get_drvdata(pdev);
+	data->pdata = pdev->dev.platform_data;
 	data->state = CONFIG;
 	data->wq = create_singlethread_workqueue("cpcap_accy");
 	INIT_DELAYED_WORK(&data->work, detection_work);
@@ -1252,9 +1272,9 @@ static int cpcap_usb_det_probe(struct platform_device *pdev)
 	data->whisper_auth = AUTH_NOT_STARTED;
 	data->hall_effect_connected = false;
 	data->irq = CPCAP_IRQ__START;
-
+	printk(KERN_INFO "pICS_%s: step 4...\n",__func__);
 	platform_set_drvdata(pdev, data);
-
+	printk(KERN_INFO "pICS_%s: step 5...\n",__func__);
 	data->regulator = regulator_get(&pdev->dev, "vusb");
 	if (IS_ERR(data->regulator)) {
 		dev_err(&pdev->dev, "Could not get regulator for cpcap_usb\n");
@@ -1262,18 +1282,26 @@ static int cpcap_usb_det_probe(struct platform_device *pdev)
 		goto free_mem;
 	}
 	regulator_set_voltage(data->regulator, 3300000, 3300000);
-
+	printk(KERN_INFO "pICS_%s: step 6...\n",__func__);
 	/* Clear the interrupts so they are in a known state when starting detection. */
 	retval = cpcap_irq_clear(data->cpcap, CPCAP_IRQ_CHRG_DET);
+	printk(KERN_INFO "pICS_%s: step 6a...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_CHRG_CURR1);
+	printk(KERN_INFO "pICS_%s: step 6b...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_SE1);
+	printk(KERN_INFO "pICS_%s: step 6c...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_IDGND);
+	printk(KERN_INFO "pICS_%s: step 6d...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_VBUSVLD);
+	printk(KERN_INFO "pICS_%s: step 6e...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_IDFLOAT);
+	printk(KERN_INFO "pICS_%s: step 6f...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_DPI);
+	printk(KERN_INFO "pICS_%s: step 6g...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_DMI);
+	printk(KERN_INFO "pICS_%s: step 6h...\n",__func__);
 	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_SESSVLD);
-
+	printk(KERN_INFO "pICS_%s: step 7...\n",__func__);
 	/* Register the interrupt handler, please be aware this will enable the
 	   interrupts. */
 	retval |= cpcap_irq_register(data->cpcap, CPCAP_IRQ_CHRG_DET,
@@ -1295,15 +1323,23 @@ static int cpcap_usb_det_probe(struct platform_device *pdev)
 	retval |= cpcap_irq_register(data->cpcap, CPCAP_IRQ_SESSVLD,
 				     int_handler, data);
 
+	retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC2,
+				     (data->uartmux << 8),
+				     (CPCAP_BIT_UARTMUX1 | CPCAP_BIT_UARTMUX0));
+
+	printk(KERN_INFO "pICS_%s: step 8...\n",__func__);
 	if (retval != 0) {
 		dev_err(&pdev->dev, "Initialization Error\n");
 		retval = -ENODEV;
 		goto free_irqs;
 	}
 
+#ifdef CONFIG_USB_CPCAP_OTG
+	data->otg = otg_get_transceiver();
+#endif
 	data->cpcap->accydata = data;
 	dev_info(&pdev->dev, "CPCAP USB detection device probed\n");
-
+	printk(KERN_INFO "pICS_%s: step 9...\n",__func__);
 	/* Schedule initial detection.  This is done in case an interrupt has
 	   already scheduled the work, to keep it from running more than once. */
 	queue_delayed_work(data->wq, &(data->work), 0);
@@ -1363,8 +1399,15 @@ static int __exit cpcap_usb_det_remove(struct platform_device *pdev)
 	switch_dev_unregister(&data->dsdev);
 	switch_dev_unregister(&data->edsdev);
 
+	gpio_set_value(data->pdata->data_gpio, 1);
+
 	vusb_disable(data);
 	regulator_put(data->regulator);
+
+#ifdef CONFIG_USB_CPCAP_OTG
+	if (data->otg)
+		otg_put_transceiver(data->otg);
+#endif
 
 	wake_lock_destroy(&data->wake_lock);
 
