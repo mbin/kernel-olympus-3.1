@@ -137,7 +137,20 @@ static int akm8975_i2c_txdata(struct akm8975_data *akm, char *buf, int length)
 	} else
 		return 0;
 }
+static void akm8975_ecs_reset_accuracy(struct akm8975_data *akm)
+{
+	struct akm8975_data *data = i2c_get_clientdata(akm->this_client);
 
+	FUNCDBG("called");
+
+	/* Report magnetic sensor information */
+	if (m_flag) {
+		input_report_abs(data->input_dev, ABS_RUDDER, 0);
+		input_sync(data->input_dev);
+	}
+
+
+}
 static void akm8975_ecs_report_value(struct akm8975_data *akm, short *rbuf)
 {
 	struct akm8975_data *data = i2c_get_clientdata(akm->this_client);
@@ -188,10 +201,10 @@ static void akm8975_ecs_close_done(struct akm8975_data *akm)
 {
 	FUNCDBG("called");
 	mutex_lock(&akm->flags_lock);
-	m_flag = 1;
-	a_flag = 1;
-	t_flag = 1;
-	mv_flag = 1;
+	m_flag = 0;
+	a_flag = 0;
+	t_flag = 0;
+	mv_flag = 0;
 	mutex_unlock(&akm->flags_lock);
 }
 
@@ -222,7 +235,7 @@ static int akm_aot_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int akm_aot_ioctl(struct inode *inode, struct file *file,
+static long akm_aot_ioctl(struct file *file,
 	      unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *) arg;
@@ -251,7 +264,8 @@ static int akm_aot_ioctl(struct inode *inode, struct file *file,
 	mutex_lock(&akm->flags_lock);
 	switch (cmd) {
 	case ECS_IOCTL_APP_SET_MFLAG:
-	  m_flag = flag;
+	  	m_flag = flag;
+		akm8975_ecs_reset_accuracy(akm);
 		break;
 	case ECS_IOCTL_APP_GET_MFLAG:
 		flag = m_flag;
@@ -270,6 +284,7 @@ static int akm_aot_ioctl(struct inode *inode, struct file *file,
 		break;
 	case ECS_IOCTL_APP_SET_DELAY:
 		akmd_delay = flag;
+		akm8975_ecs_reset_accuracy(akm);
 		break;
 	case ECS_IOCTL_APP_GET_DELAY:
 		flag = akmd_delay;
@@ -316,7 +331,7 @@ static int akmd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int akmd_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+static long akmd_ioctl(struct file *file, unsigned int cmd,
 		      unsigned long arg)
 {
 	void __user *argp = (void __user *) arg;
@@ -509,6 +524,7 @@ static int akm8975_init_client(struct i2c_client *client)
 	struct akm8975_data *data;
 	int ret;
 
+	FUNCDBG("called");
 	data = i2c_get_clientdata(client);
 
 	ret = request_irq(client->irq, akm8975_interrupt, IRQF_TRIGGER_RISING,
@@ -522,10 +538,10 @@ static int akm8975_init_client(struct i2c_client *client)
 	init_waitqueue_head(&open_wq);
 
 	mutex_lock(&data->flags_lock);
-	m_flag = 1;
-	a_flag = 1;
-	t_flag = 1;
-	mv_flag = 1;
+	m_flag = 0;
+	a_flag = 0;
+	t_flag = 0;
+	mv_flag = 0;
 	mutex_unlock(&data->flags_lock);
 
 	return 0;
@@ -591,6 +607,12 @@ int akm8975_probe(struct i2c_client *client,
 	mutex_init(&akm->flags_lock);
 	INIT_WORK(&akm->work, akm_work_func);
 	i2c_set_clientdata(client, akm);
+
+	if (akm->pdata->init) {
+		err = akm->pdata->init();
+		if (err < 0)
+			goto exit_init_failed;
+	}
 
 	err = akm8975_power_on(akm);
 	if (err < 0)
@@ -663,6 +685,7 @@ int akm8975_probe(struct i2c_client *client,
 	akm->early_suspend.resume = akm8975_early_resume;
 	register_early_suspend(&akm->early_suspend);
 #endif
+	FUNCDBG("success");
 	return 0;
 
 exit_misc_device_register_failed:
@@ -670,11 +693,15 @@ exit_input_register_device_failed:
 	input_free_device(akm->input_dev);
 exit_input_dev_alloc_failed:
 	akm8975_power_off(akm);
+exit_init_failed:
+	if (akm->pdata->exit)
+		akm->pdata->exit();
 exit_power_on_failed:
 	kfree(akm);
 exit_alloc_data_failed:
 exit_check_functionality_failed:
 exit_platform_data_null:
+	FUNCDBG("failure");
 	return err;
 }
 
@@ -687,6 +714,8 @@ static int __devexit akm8975_remove(struct i2c_client *client)
 	misc_deregister(&akmd_device);
 	misc_deregister(&akm_aot_device);
 	akm8975_power_off(akm);
+	if (akm->pdata->exit)
+		akm->pdata->exit();
 	kfree(akm);
 	return 0;
 }
