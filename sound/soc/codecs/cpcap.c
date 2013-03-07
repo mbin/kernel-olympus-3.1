@@ -38,7 +38,7 @@
 
 #include "cpcap.h"
 
-#define CPCAP_AUDIO_DEBUG 
+#define CPCAP_AUDIO_DEBUG 1
 #ifdef CPCAP_AUDIO_DEBUG
 #define CPCAP_AUDIO_DEBUG_LOG(args...) printk(KERN_INFO "ALSA CPCAP:" args)
 #else
@@ -623,6 +623,8 @@ static struct vaudio_data vaudio;
 
 static int vaudio_mode(unsigned char mode)
 {
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
+
 	if (IS_ERR(vaudio.regulator)) {
 		printk(KERN_ERR "%s: Invalid vaudio\n", __func__);
 		return -EINVAL;
@@ -638,6 +640,8 @@ static int vaudio_mode(unsigned char mode)
 
 static int vaudio_get(void)
 {
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
+
 	vaudio.regulator = regulator_get(NULL, "vaudio");
 	if (IS_ERR(vaudio.regulator)) {
 		printk(KERN_ERR "%s: invalid vaudio\n", __func__);
@@ -656,6 +660,8 @@ static unsigned int cpcap_audio_reg_read(struct snd_soc_codec *codec,
 	struct cpcap_device *cpcap;
 	struct cpcap_audio_state *state = snd_soc_codec_get_drvdata(codec);
 	unsigned short *cache = codec->reg_cache;
+
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
 
 	if (reg >= CPCAP_AUDIO_REG_NUM) {
 		printk(KERN_ERR "%s: invalid register %u\n", __func__, reg);
@@ -693,6 +699,8 @@ static int cpcap_audio_reg_write(struct snd_soc_codec *codec,
 	struct cpcap_audio_state *state = snd_soc_codec_get_drvdata(codec);
 	unsigned short *cache = codec->reg_cache;
 
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
+
 	if (reg >= CPCAP_AUDIO_REG_NUM) {
 		printk(KERN_ERR "%s: invalid register %u\n", __func__, reg);
 		return -EIO;
@@ -722,6 +730,7 @@ static int cpcap_audio_reg_write(struct snd_soc_codec *codec,
 
 static void cpcap_audio_register_dump(struct snd_soc_codec *codec)
 {
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
 #ifdef CPCAP_AUDIO_DEBUG
 	unsigned short *cache;
 	int i = 0;
@@ -1031,6 +1040,7 @@ static int snd_soc_put_cpcap_switch(struct snd_kcontrol *kcontrol,
 static int snd_soc_get_emu_antipop(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
 	ucontrol->value.integer.value[0] = emu_analog_antipop;
 	return 0;
 }
@@ -1111,6 +1121,7 @@ static int snd_soc_put_cpcap_mixer(struct snd_kcontrol *kcontrol,
 	struct cpcap_audio_state *state = snd_soc_codec_get_drvdata(codec);
 	int stdac_workaround_needed = 0;
 
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
 	if (!state && cpcap_global_state_pointer) {
 		state = cpcap_global_state_pointer;
 		CPCAP_AUDIO_DEBUG_LOG("put_mixer using global codec %p"
@@ -1344,6 +1355,7 @@ static int snd_soc_put_cpcap_gpio(struct snd_kcontrol *kcontrol,
 static int snd_soc_get_cpcap_sdac(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
 	return 0;
 }
 
@@ -1384,6 +1396,7 @@ static int snd_soc_put_cpcap_sdac(struct snd_kcontrol *kcontrol,
 static int snd_soc_get_cpcap_dai_mode(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
+	CPCAP_AUDIO_DEBUG_LOG("%s: Entered\n", __func__);
 	return 0;
 }
 
@@ -1564,6 +1577,8 @@ static int cpcap_add_widgets(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(&codec->dapm, "AIFIN Voice");
 	snd_soc_dapm_ignore_suspend(&codec->dapm, "AIFIN Multimedia");
 	snd_soc_dapm_ignore_suspend(&codec->dapm, "AIFIN ExternalPGA");
+
+	CPCAP_AUDIO_DEBUG_LOG("%s: Exited\n", __func__);
 
 	return 0;
 }
@@ -2614,7 +2629,7 @@ struct snd_soc_dai_driver cpcap_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_S24_LE,},
 	.ops = &cpcap_dai_mm_ops,
 },
-{
+/*{
 	.name = "cpcap codec",
 	.playback = {
 		.stream_name = "Voice Playback",
@@ -2646,7 +2661,7 @@ struct snd_soc_dai_driver cpcap_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &cpcap_dai_incall_ops,
 },
-/*{
+{
 	.name = "cpcap in-call second",
 	.playback = {
 		.stream_name = "InCall DL",
@@ -2661,7 +2676,7 @@ struct snd_soc_dai_driver cpcap_dai[] = {
 		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &cpcap_dai_incall_second_ops,
-},*/
+},
 {
 	.name = "cpcap bt-call",
 	.playback = {
@@ -2678,7 +2693,7 @@ struct snd_soc_dai_driver cpcap_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &cpcap_dai_btcall_ops,
 },
-/*{
+{
 	.name = "cpcap bt-call second",
 	.playback = {
 		.stream_name = "BTCall DL",
@@ -2693,7 +2708,7 @@ struct snd_soc_dai_driver cpcap_dai[] = {
 		.rates = SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &cpcap_dai_btcall_second_ops,
-},*/
+},
 {
 	.name = "cpcap bt",
 	.playback = {
@@ -2734,7 +2749,7 @@ struct snd_soc_dai_driver cpcap_dai[] = {
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &cpcap_dai_fm_ops,
-},
+},*/
 };
 
 static int cpcap_suspend(struct snd_soc_codec *codec, pm_message_t state)
@@ -2764,8 +2779,9 @@ static int cpcap_probe(struct snd_soc_codec *codec) // verified
 	cpcap_global_state_pointer = curr_state;
 
 	pdev = container_of(codec->dev, struct platform_device, dev);
+	pr_info("%s: pdev->id: %d, pdev->name: %s\n", __func__, pdev->id, pdev->name);
 	curr_state->cpcap = platform_get_drvdata(pdev);
-	pr_info("ENTER: %s\n", __func__);
+//	curr_state->cpcap = dev_get_drvdata(codec->dev);
 	if (curr_state->cpcap) {
 		curr_state->cpcap->h2w_new_state = &audio_callback;
 		curr_state->cpcap->h2w_new_state_data = curr_state;

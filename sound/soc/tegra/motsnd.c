@@ -42,7 +42,7 @@
 
 #include "../codecs/cpcap.h"
 
-#define MOTSND_DEBUG
+#define MOTSND_DEBUG 1
 #ifdef MOTSND_DEBUG
 #define MOTSND_DEBUG_LOG(args...) printk(KERN_INFO "ALSA MOTSND:" args)
 #else
@@ -135,7 +135,7 @@ static int motsnd_hw_params(struct snd_pcm_substream *substream, 	//verified
 static struct snd_soc_ops motsnd_ops = {
 	.hw_params = motsnd_hw_params,
 };
-
+#if 0
 static int motsnd_voice_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
@@ -174,10 +174,20 @@ static int motsnd_voice_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* Set cpu DAI configuration */
-/*	ret = snd_soc_dai_set_sysclk(cpu_dai,
-				     OMAP_MCBSP_SYSCLK_CLKX_EXT,
-				     0, 0);*/
+	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAP_SEL_DAC2,
+					TEGRA20_DAS_DAP_ID_2);
+	if (ret < 0) {
+		printk(KERN_ERR "failed to set dap-dac path\n");
+		return ret;
+	}
+
+	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_3,
+					TEGRA20_DAS_DAP_SEL_DAC1);
+	if (ret < 0) {
+		printk(KERN_ERR "failed to set dac-dap path\n");
+		return ret;
+	}
+
 	if (ret < 0)
 		printk(KERN_ERR "can't set cpu DAI system clock\n");
 
@@ -230,7 +240,7 @@ static struct snd_soc_ops motsnd_incall_ops = {
 	.shutdown = motsnd_incall_shutdown,
 	.hw_params = motsnd_incall_hw_params,
 };
-
+#if 0
 static int motsnd_btvoice_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
@@ -273,12 +283,19 @@ static int motsnd_btvoice_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* Set cpu DAI configuration */
-/*	ret = snd_soc_dai_set_sysclk(cpu_dai,
-				     OMAP_MCBSP_SYSCLK_CLKX_EXT,
-				     0, 0);*/
-	if (ret < 0)
-		printk(KERN_ERR "can't set cpu DAI system clock\n");
+	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAP_SEL_DAC2,
+					TEGRA20_DAS_DAP_ID_4);
+	if (ret < 0) {
+		printk(KERN_ERR "failed to set dap-dac path\n");
+		return ret;
+	}
+
+	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_4,
+					TEGRA20_DAS_DAP_SEL_DAC2);
+	if (ret < 0) {
+		printk(KERN_ERR "failed to set dac-dap path\n");
+		return ret;
+	}
 
 	return ret;
 }
@@ -292,7 +309,7 @@ static int motsnd_bt_incall_hw_params(struct snd_pcm_substream *substream,
 {
 //	int ret;
 	
-	pr_info("ENTER: motsnd_tegra_mm_init\n");
+	pr_info("ENTER: %s\n", __func__);
 
 //	return ret;
 	return 0;
@@ -301,7 +318,7 @@ static int motsnd_bt_incall_hw_params(struct snd_pcm_substream *substream,
 static struct snd_soc_ops motsnd_bt_incall_ops = {
 	.hw_params = motsnd_bt_incall_hw_params,
 };
-
+#endif
 static int motsnd_spdif_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
@@ -323,9 +340,10 @@ static int motsnd_cpcap_init(struct snd_soc_pcm_runtime *rtd)
 static int motsnd_cpcap_voice_init(struct snd_soc_pcm_runtime *rtd)
 {
 	MOTSND_DEBUG_LOG("%s: Entered\n", __func__);
+
 	return 0;
 }
-
+#endif
 static const struct snd_soc_dapm_widget tegra_dapm_widgets[] = {	//verified
 	SND_SOC_DAPM_SPK("Int Spk", NULL),
 };
@@ -348,7 +366,7 @@ static int motsnd_tegra_mm_init(struct snd_soc_pcm_runtime *rtd) {	//verified
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	pr_info("ENTER: motsnd_tegra_mm_init\n");
+	pr_info("ENTER: %s\n",__func__);
 
 	ret = snd_soc_add_controls(codec, tegra_controls, ARRAY_SIZE(tegra_controls));
 	if (ret < 0)
@@ -363,10 +381,11 @@ static int motsnd_tegra_mm_init(struct snd_soc_pcm_runtime *rtd) {	//verified
 	snd_soc_dapm_nc_pin(dapm, "LINEOUTR");
 	snd_soc_dapm_nc_pin(dapm, "LINEOUTL");
 	snd_soc_dapm_sync(dapm);
+	pr_info("EXIT: %s\n",__func__);
 
 	return 0;
 }
-
+/*
 static struct snd_soc_dai_driver dai[] = { 	//verified
 {
 	.name = "MODEM",
@@ -396,7 +415,7 @@ static struct snd_soc_dai_driver dai[] = { 	//verified
 	},
 }
 };
-
+*/
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link motsnd_dai[] = {		//verified
 {
@@ -411,7 +430,7 @@ static struct snd_soc_dai_link motsnd_dai[] = {		//verified
 	.init = motsnd_tegra_mm_init,
 	.ops = &motsnd_ops,
 },
-{
+/*{
 	.name = "Voice",
 	.stream_name = "Tegra-i2s.1",
 	.codec_name = "cpcap_audio",
@@ -428,7 +447,7 @@ static struct snd_soc_dai_link motsnd_dai[] = {		//verified
 	.stream_name = "Tegra-i2s.1",
 	.codec_name = "cpcap_audio",
 	.platform_name = "tegra-pcm-audio",
-	.cpu_dai_name = "tegra20-i2s.1",
+//	.cpu_dai_name = "tegra20-i2s.1",
 	.codec_dai_name = "cpcap in-call",
 	.ignore_suspend = 1,
 //	.symmetric_rates = ,
@@ -440,7 +459,7 @@ static struct snd_soc_dai_link motsnd_dai[] = {		//verified
 	.stream_name = "SPDIF PCM",
 	.codec_name = "spdif-dit.0",
 	.platform_name = "tegra-pcm-audio",
-	.cpu_dai_name = "tegra20-spdif",
+//	.cpu_dai_name = "tegra20-spdif",
 	.codec_dai_name = "dit-hifi",
 //	.ignore_suspend = ,
 //	.symmetric_rates = ,
@@ -470,13 +489,13 @@ static struct snd_soc_dai_link motsnd_dai[] = {		//verified
 //	.symmetric_rates = ,
 	.init = motsnd_cpcap_voice_init,
 	.ops = &motsnd_btvoice_ops,
-},
+},*/
 };
 
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_mot = { 	//verified
 	.name = "motsnd",
-//	.long_name = "Motorola OLYMPUS",
+	.long_name = "Motorola OLYMPUS",
 	.dai_link = motsnd_dai,
 	.num_links = ARRAY_SIZE(motsnd_dai),
 };
@@ -508,12 +527,15 @@ static int __init motsnd_soc_init(void)	//verified
 		dev_err(&mot_snd_device->dev, "Can't do tegra_asoc_utils_init()\n");
 		goto err_free_olympus;
 	}
-	pr_info("MOTSND SoC init: snd_soc_register_dais\n");
-	snd_soc_register_dais(&mot_snd_device->dev, dai, ARRAY_SIZE(dai));
+//	pr_info("MOTSND SoC init: snd_soc_register_dais\n");
+//	snd_soc_register_dais(&mot_snd_device->dev, dai, ARRAY_SIZE(dai));
 
 	pr_info("MOTSND SoC init: platform_set_drvdata\n");
+//	snd_soc_card_set_drvdata(card, mot_snd_device);
 	platform_set_drvdata(mot_snd_device, card);
 
+	pr_info("%s: mot_snd_device: id: %d, name: %s\n", __func__, mot_snd_device->id, mot_snd_device->name);
+	
 	pr_info("MOTSND SoC init: platform_device_add\n");
 	ret = platform_device_add(mot_snd_device);
 	if (ret) 
