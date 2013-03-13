@@ -37,15 +37,24 @@ static unsigned int olympus_col_gpios[] = {
 
 static const unsigned short olympus_p3_keymap[ARRAY_SIZE(olympus_col_gpios) *
 					     ARRAY_SIZE(olympus_row_gpios)] = {
-	[KEYMAP_INDEX(0, 0)] = KEY_VOLUMEUP,
+/*	[KEYMAP_INDEX(0, 0)] = KEY_VOLUMEUP,
 	[KEYMAP_INDEX(1, 0)] = KEY_CAMERA_FOCUS,
 	[KEYMAP_INDEX(2, 0)] = KEY_MENU,
 	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEDOWN,
 	[KEYMAP_INDEX(1, 1)] = KEY_CAMERA,
 	[KEYMAP_INDEX(2, 1)] = KEY_HOME,
-	[KEYMAP_INDEX(0, 2)] = KEY_AUX,
+	[KEYMAP_INDEX(0, 2)] = KEY_AUX,	
 	[KEYMAP_INDEX(1, 2)] = KEY_SEARCH,
-	[KEYMAP_INDEX(2, 2)] = KEY_BACK,
+	[KEYMAP_INDEX(2, 2)] = KEY_BACK,*/
+	[KEYMAP_INDEX(0, 0)] = 0x73,
+	[KEYMAP_INDEX(0, 1)] = 0xd3,
+	[KEYMAP_INDEX(0, 2)] = 0x8b,
+	[KEYMAP_INDEX(1, 0)] = 0x72,
+	[KEYMAP_INDEX(1, 1)] = 0xd4,
+	[KEYMAP_INDEX(1, 2)] = 0x66,
+	[KEYMAP_INDEX(2, 0)] = 0x00,
+	[KEYMAP_INDEX(2, 1)] = 0xd9,
+	[KEYMAP_INDEX(2, 2)] = 0x9e,
 };
 
 static struct gpio_event_matrix_info olympus_keypad_matrix_info = {
@@ -58,7 +67,7 @@ static struct gpio_event_matrix_info olympus_keypad_matrix_info = {
 /*	.settle_time.tv.nsec = 40 * NSEC_PER_USEC,
 	.poll_time.tv.nsec = 20 * NSEC_PER_MSEC,*/
 	.flags = GPIOKPF_LEVEL_TRIGGERED_IRQ | GPIOKPF_REMOVE_PHANTOM_KEYS |
-		 GPIOKPF_PRINT_UNMAPPED_KEYS /*| GPIOKPF_PRINT_MAPPED_KEYS*/
+		 GPIOKPF_PRINT_UNMAPPED_KEYS | GPIOKPF_PRINT_MAPPED_KEYS
 };
 
 static struct gpio_event_direct_entry olympus_keypad_switch_map[] = {
