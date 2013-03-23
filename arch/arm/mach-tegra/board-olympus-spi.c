@@ -75,51 +75,58 @@
 #include <linux/usb/android_composite.h>
 #endif
 
-static struct tegra_i2c_platform_data olympus_i2c1_platform_data = {
-	.adapter_nr	= 0,
-	.bus_count	= 1,
-	.bus_clk_rate	= { 400000, 0 },
-	.scl_gpio	= {TEGRA_GPIO_PC4, 0},
-	.sda_gpio	= {TEGRA_GPIO_PC5, 0},
-	.arb_recovery = arb_lost_recovery,
-	.slave_addr = 0xFC,
+/*
+ * SPI
+ */
+#if 0
+static struct tegra_spi_platform_data olympus_spi_pdata = {
+	.is_dma_based		= true,
+	.max_dma_buffer		= (16 * 1024),
+	.is_clkon_always	= false,
+	.max_rate		= 100000000,
 };
+/*
+struct spi_clk_parent spi_parent_clk[] = {
+	[0] = {.name = "pll_p"},
+#ifndef CONFIG_TEGRA_PLLM_RESTRICTED
+	[1] = {.name = "pll_m"},
+	[2] = {.name = "clk_m"},
+#else
+	[1] = {.name = "clk_m"},
+#endif
+};*/
 
-static struct tegra_i2c_platform_data olympus_i2c2_platform_data = {
-	.adapter_nr	= 1,
-	.bus_count	= 1,
-	.bus_clk_rate	= { 400000, 0 },
-};
-
-static struct tegra_i2c_platform_data olympus_i2c3_platform_data = {
-	.adapter_nr	= 2,
-	.bus_count	= 1,
-	.bus_clk_rate	= { 400000, 0 },
-	.scl_gpio	= {TEGRA_GPIO_PBB2, 0},
-	.sda_gpio	= {TEGRA_GPIO_PBB3, 0},
-	.arb_recovery = arb_lost_recovery,
-	.slave_addr = 0xFC,
-};
-
-static struct tegra_i2c_platform_data olympus_dvc_platform_data = {
-	.adapter_nr	= 3,
-	.bus_count	= 1,
-	.bus_clk_rate	= { 400000, 0 },
-	.is_dvc		= true,
-	.scl_gpio	= {TEGRA_GPIO_PZ6, 0},
-	.sda_gpio	= {TEGRA_GPIO_PZ7, 0},
-	.arb_recovery = arb_lost_recovery,
-};
-
-void olympus_i2c_reg(void)
+static void __init olympus_spi_init(void)
 {
-	tegra_i2c_device1.dev.platform_data = &olympus_i2c1_platform_data;
-	tegra_i2c_device2.dev.platform_data = &olympus_i2c2_platform_data;
-	tegra_i2c_device3.dev.platform_data = &olympus_i2c3_platform_data;
-	tegra_i2c_device4.dev.platform_data = &olympus_dvc_platform_data;
+//	int i;
+//	struct clk *clk;
+/*
+	printk("this board spi init\n");
+        for (i = 0; i < ARRAY_SIZE(spi_parent_clk); ++i) {
+      		clk = tegra_get_clock_by_name(spi_parent_clk[i].name);
+		if (IS_ERR_OR_NULL(clk)) {
+			pr_err("Not able to get the clock for %s\n", spi_parent_clk[i].name);
+			continue;
+                }
+		spi_parent_clk[i].parent_clk = clk;
+		spi_parent_clk[i].fixed_clk_rate = clk_get_rate(clk);
+	}
+	olympus_spi_pdata.parent_clk_list = spi_parent_clk;
+	olympus_spi_pdata.parent_clk_count = ARRAY_SIZE(spi_parent_clk);
+*/
+	tegra_spi_device1.dev.platform_data = &olympus_spi_pdata;
+	platform_device_register(&tegra_spi_device1);
 
-	platform_device_register(&tegra_i2c_device1);
-	platform_device_register(&tegra_i2c_device2);
-	platform_device_register(&tegra_i2c_device3);
-	platform_device_register(&tegra_i2c_device4);
+	tegra_spi_device2.dev.platform_data = &olympus_spi_pdata;
+	platform_device_register(&tegra_spi_device2);
+
+	tegra_spi_device3.dev.platform_data = &olympus_spi_pdata;
+	platform_device_register(&tegra_spi_device3);
+
+	tegra_spi_device3.dev.platform_data = &olympus_spi_pdata;
+	platform_device_register(&tegra_spi_device4);
+
 }
+#endif
+
+
