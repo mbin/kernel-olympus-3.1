@@ -5,6 +5,7 @@
 
 extern int __init olympus_kbc_init(void);
 extern void __init olympus_pinmux_init(void);
+extern void __init olympus_audio_init(void);
 extern int __init olympus_panel_init(void);
 extern void __init olympus_emc_init(void);
 extern void __init olympus_devices_init(void);
@@ -21,6 +22,7 @@ extern int olympus_mdm_ctrl_peer_register(void (*)(void*),
                                       void (*)(void*),
                                       void*);
 extern int __init olympus_wlan_init(void);
+
 extern int __init olympus_modem_init(void);
 
 extern void __init olympus_hdmi_init(void);
@@ -31,20 +33,25 @@ extern void olympus_tcmd_init(void);
 
 extern void tegra_otg_set_mode(int);
 extern void sdhci_tegra_wlan_detect(void);
+int olympus_wifi_status_register(
+		void (*sdhcicallback)(int card_present, void *dev_id),
+		void *dev_id);
 
 extern int olympus_keymap_update_init(void);
 
 extern void cpcap_set_dock_switch(int state);
 
-void olympus_usb_init(void);
+void __init olympus_usb_init(void);
 
 void __init olympus_uart_init(void);
 
 void __init olympus_sdhci_init(void);
 
-void tegra_system_power_off(void);
+void __init olympus_i2c_init(void);
 
-void olympus_i2c_reg(void);
+void __init olympus_spi_init(void);
+
+void tegra_system_power_off(void);
 
 #define SERIAL_NUMBER_STRING_LEN 17
 

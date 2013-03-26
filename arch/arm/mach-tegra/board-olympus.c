@@ -53,13 +53,6 @@
 #include "gpio-names.h"
 #include "pm.h"
 
-#include <linux/qtouch_obp_ts.h>
-#if 0
-#include <linux/isl29030.h>
-
-#include <linux/leds-lm3530.h>
-#include <linux/leds-lm3532.h>
-#endif
 #include "board.h"
 #include "hwrev.h"
 
@@ -475,25 +468,33 @@ static void __init tegra_olympus_init(void)
 
 	olympus_pinmux_init();
 
+	olympus_i2c_init();
+
+	olympus_uart_init();
+
+	olympus_spi_init();
+
+	olympus_audio_init();
+
 	olympus_devices_init();
 
 	olympus_power_init();
 	
+	olympus_sdhci_init();
+
 	olympus_tcmd_init();
 
 //	olympus_sec_init();
 
-	olympus_panel_init();
-
-//	olympus_keymap_update_init();
-
-	//olympus_keypad_init();
-
 	olympus_backlight_init();
+
+	olympus_panel_init();
 
 	olympus_kbc_init();
 
 	olympus_touch_init();
+
+	olympus_usb_init();
 
 	if( (bi_powerup_reason() & PWRUP_FACTORY_CABLE) &&
 	    (bi_powerup_reason() != PWRUP_INVALID) ){
@@ -506,8 +507,8 @@ if (1==0) olympus_emc_init();
 
 	platform_device_register(&tegra_w1_device);
 	
-	//olympus_modem_init();
-	//olympus_wlan_init();
+	olympus_modem_init();
+	olympus_wlan_init();
 
 //	platform_driver_register(&cpcap_usb_connected_driver);
 
@@ -604,7 +605,7 @@ static void __init olympus_fixup(struct machine_desc *desc, struct tag *tags,
 
 int __init olympus_protected_aperture_init(void)
 {
-	//tegra_protected_aperture_init(tegra_grhost_aperture);
+	tegra_protected_aperture_init(tegra_grhost_aperture);
 	return 0;
 }
 late_initcall(olympus_protected_aperture_init);
@@ -616,8 +617,8 @@ void __init tegra_olympus_reserve(void)
 	if (memblock_reserve(0x0, 4096) < 0)
 		pr_warn("Cannot reserve first 4K of memory for safety\n");
 
-	tegra_reserve(SZ_128M+SZ_64M, SZ_8M, SZ_16M);
-	tegra_ram_console_debug_reserve(SZ_1M);
+	tegra_reserve(SZ_128M, SZ_8M, SZ_8M);
+	//tegra_ram_console_debug_reserve(SZ_1M);
 
 }
 

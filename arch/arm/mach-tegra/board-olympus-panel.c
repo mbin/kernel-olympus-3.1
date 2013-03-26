@@ -46,6 +46,9 @@
 static struct regulator *olympus_dsi_reg = NULL;   			
 static struct regulator *olympus_SW5 = NULL; 
 
+static struct regulator *olympus_hdmi_reg = NULL;
+static struct regulator *olympus_hdmi_pll = NULL;
+
 static struct platform_tegra_pwm_backlight_data olympus_disp1_backlight_data = {
 	.which_dc = 0,
 	.which_pwm = 1,
@@ -205,39 +208,33 @@ static struct tegra_dsi_cmd dsi_olympus_init_cmd[]= {
 };
 */
 static struct tegra_dsi_cmd dsi_suspend_cmd[] = {
-	DSI_CMD_SHORT(0x05, 0x28, 0x00),
-	DSI_DLY_MS(20), 
 	DSI_CMD_SHORT(0x05, 0x10, 0x00),
-	DSI_DLY_MS(120),
+	DSI_CMD_SHORT(0x05, 0x28, 0x00),
+	DSI_DLY_MS(68), 
 };
 
 static int olympus_panel_enable(void)
 {
 	int ret;
-	//printk(KERN_INFO "pICS_%s: level 1...",__func__);
+	printk(KERN_INFO "pICS_%s: level 1...",__func__);
 
-	gpio_set_value(47,1);
-	mdelay(5);
-	gpio_set_value(35, 1);	
-
-	if (olympus_dsi_reg == NULL) {
+	if (!olympus_dsi_reg) {
 		olympus_dsi_reg = regulator_get(NULL, "vcsi");
 		if (IS_ERR_OR_NULL(olympus_dsi_reg)) {
 			pr_err("Ninja: dsi: Could not get regulator vcsi\n");
 				olympus_dsi_reg = NULL;
 				return PTR_ERR(olympus_dsi_reg);
 		}
+		printk(KERN_INFO "pICS_%s: level 2...",__func__);
+		ret = regulator_enable(olympus_dsi_reg);
+		if (ret < 0) {
+			printk(KERN_ERR
+				"Ninja: DSI regulator vcsi could not be enabled\n");
+			return ret;
+		}
 	}
-	//printk(KERN_INFO "pICS_%s: level 2...",__func__);
-	ret = regulator_enable(olympus_dsi_reg);
-	if (ret < 0) {
-		printk(KERN_ERR
-			"Ninja: DSI regulator vcsi could not be enabled\n");
-		return ret;
-	}
-	//printk(KERN_INFO "pICS_%s: level 3...",__func__);
 
-	//printk(KERN_INFO "pICS_%s: level 4...",__func__);
+	printk(KERN_INFO "pICS_%s: level 3...",__func__);
 	if (!olympus_SW5) {
 		olympus_SW5 = regulator_get(NULL, "sw5"); /* SW5 */
 		if (IS_ERR_OR_NULL(olympus_SW5)) {
@@ -245,16 +242,20 @@ static int olympus_panel_enable(void)
 			olympus_SW5 = NULL;
 			return PTR_ERR(olympus_SW5);
 		}
+		printk(KERN_INFO "pICS_%s: level 4...",__func__);
+        	ret = regulator_enable(olympus_SW5);
+		if (ret < 0) {
+			printk(KERN_ERR
+				"Ninja: DSI regulator SW5 could not be enabled\n");
+			return ret;
+		}
         }
-	//printk(KERN_INFO "pICS_%s: level 5...",__func__);
-        ret = regulator_enable(olympus_SW5);
-	if (ret < 0) {
-		printk(KERN_ERR
-			"Ninja: DSI regulator SW5 could not be enabled\n");
-		return ret;
-	}
-	//printk(KERN_INFO "pICS_%s: level 6...",__func__);
-	return ret;
+	printk(KERN_INFO "pICS_%s: level 5...",__func__);
+	gpio_set_value(47,1);
+	mdelay(5);
+	gpio_set_value(35, 1);	
+
+	return 0;
 }
 
 static int olympus_panel_disable(void)
@@ -265,66 +266,98 @@ static int olympus_panel_disable(void)
 	gpio_set_value(35, 0);
 	gpio_set_value(47, 0);	
 
-	//printk(KERN_INFO "pICS_%s: level 1...",__func__);
-
-        ret = regulator_disable(olympus_SW5);
-	if (ret < 0) {
-		printk(KERN_ERR
-			"Ninja: DSI regulator SW5 could not be disabled\n");
-		return ret;
+	printk(KERN_INFO "pICS_%s: level 1...",__func__);
+	
+	if (olympus_dsi_reg) {
+		ret = regulator_disable(olympus_dsi_reg);
+		if (ret < 0) {
+			printk(KERN_ERR
+				"Ninja: DSI regulator vcsi could not be disabled\n");
+			return ret;
+		}
+		regulator_put(olympus_dsi_reg);  
+		olympus_dsi_reg = NULL;
 	}
-	regulator_put(olympus_SW5);
-
-	ret = regulator_disable(olympus_dsi_reg);
-	if (ret < 0) {
-		printk(KERN_ERR
-			"Ninja: DSI regulator vcsi could not be disabled\n");
-		return ret;
+	printk(KERN_INFO "pICS_%s: level 2...",__func__);
+	if (olympus_SW5) {
+       		ret = regulator_disable(olympus_SW5);
+		if (ret < 0) {
+			printk(KERN_ERR
+				"Ninja: DSI regulator SW5 could not be disabled\n");
+			return ret;
+		}
+		regulator_put(olympus_SW5);
+		olympus_SW5 = NULL;
 	}
-	regulator_put(olympus_dsi_reg);      
+	printk(KERN_INFO "pICS_%s: level 3...",__func__);
 
-	return ret;
+	return 0;
 }
-
+/* TODO: fill with correct Olympus DSI MIPI panel settings
 static struct tegra_dsi_out olympus_dsi_out = {
 	.n_data_lanes = 2,
 	.pixel_format = TEGRA_DSI_PIXEL_FORMAT_24BIT_P, // 3
-	.refresh_rate = 60,
-//	.refresh_rate = 64, //nn
-	.rated_refresh_rate = 0,
-	.panel_reset = 0,
-//	.panel_reset = 1, //nn
+//	.refresh_rate = 60,
+	.refresh_rate = 64, //nn
+//	.rated_refresh_rate = 0,
+//	.panel_reset = 0,
+	.panel_reset = 1, //nn
+	.panel_reset_timeout_msec = 202, //nn
 	.virtual_channel = TEGRA_DSI_VIRTUAL_CHANNEL_0, // 0
 	.dsi_instance = 0,
 	.chip_id = 0,
 	.chip_rev = 0,
-	.panel_has_frame_buffer = 1,
+//	.panel_has_frame_buffer = 1,
 //	.panel_has_frame_buffer = 0,  
-//	.dsi_init_cmd = dsi_init_cmd, 	/*init cmd*/
+//	.dsi_init_cmd = dsi_init_cmd,
 //	.n_init_cmd = ARRAY_SIZE(dsi_init_cmd),
-	.dsi_init_cmd = dsi_olympus_init_cmd, 	/*init cmd*/
+	.dsi_init_cmd = dsi_olympus_init_cmd,
 	.n_init_cmd = ARRAY_SIZE(dsi_olympus_init_cmd),
 	.dsi_suspend_cmd = dsi_suspend_cmd,
 	.n_suspend_cmd = ARRAY_SIZE(dsi_suspend_cmd),		
+	.video_burst_mode = TEGRA_DSI_VIDEO_NONE_BURST_MODE, //nn
+	.video_clock_mode = TEGRA_DSI_VIDEO_CLOCK_TX_ONLY, //nn
+//	.video_clock_mode = TEGRA_DSI_VIDEO_CLOCK_CONTINUOUS,
 	.video_data_type = TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE,
-//	.video_clock_mode = TEGRA_DSI_VIDEO_CLOCK_TX_ONLY,
-	.video_clock_mode = TEGRA_DSI_VIDEO_CLOCK_CONTINUOUS,
-//	.power_saving_suspend = 1, //nn
-/*	.phy_timing = { //nn
+	.power_saving_suspend = 1, //nn
+	.phy_timing = { //nn
 		.t_hsdexit_ns = 6,
 		.t_hstrail_ns = 7,
 		.t_hsprepare_ns = 4,
 		.t_datzero_ns = 9,
 		.t_clktrail_ns = 4,
 		.t_clkpost_ns = 10,
-		.t_clkzero_ns = 13,
-		.t_tlpx_ns =  3,
-	},*/
-	.lp_cmd_mode_freq_khz = 10000, 
-//	.lp_cmd_mode_freq_khz = 229500, //nn
-	/* TODO: Get the vender recommended freq */
+		//.t_clkzero_ns = 13,
+		.t_clkzero_ns = 10,  //WAR
+		//.t_tlpx_ns =  2,
+	},
+//	.lp_cmd_mode_freq_khz = 10000, 
+	.lp_cmd_mode_freq_khz = 229500, //nn
+//	.lp_read_cmd_mode_freq_khz = 230000,
+// 	.te_polarity_low = true,
+};*/
+
+static struct tegra_dsi_out olympus_dsi_out = {
+	.n_data_lanes = 2,
+	.pixel_format = TEGRA_DSI_PIXEL_FORMAT_24BIT_P, // 3
+	.refresh_rate = 64,
+//	.rated_refresh_rate = 0,
+	.panel_reset = 1,
+	.virtual_channel = TEGRA_DSI_VIRTUAL_CHANNEL_0, // 0
+	.dsi_instance = 0,
+	.chip_id = 0,
+	.chip_rev = 0,
+	.panel_has_frame_buffer = 1,
+	.dsi_init_cmd = dsi_olympus_init_cmd, /*init cmd*/
+	.n_init_cmd = ARRAY_SIZE(dsi_olympus_init_cmd),
+	.dsi_suspend_cmd = dsi_suspend_cmd,
+	.n_suspend_cmd = ARRAY_SIZE(dsi_suspend_cmd),	
+	.video_data_type = TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE,
+	// .video_clock_mode = TEGRA_DSI_VIDEO_CLOCK_TX_ONLY,
+	.video_clock_mode = TEGRA_DSI_VIDEO_CLOCK_CONTINUOUS,
+	.lp_cmd_mode_freq_khz = 10000,
 	.lp_read_cmd_mode_freq_khz = 230000,
- 	.te_polarity_low = true,
+	.te_polarity_low = true,
 };
 
 static struct tegra_dc_out olympus_disp1_out = {
@@ -387,6 +420,42 @@ static int olympus_panel_setup_dc(void)
 	return 0;
 }
 
+static int olympus_hdmi_enable(void)
+{
+	if (!olympus_hdmi_reg) {
+		olympus_hdmi_reg = regulator_get(NULL, "vhdmi"); /* LD011 */
+		if (IS_ERR_OR_NULL(olympus_hdmi_reg)) {
+			pr_err("hdmi: couldn't get regulator vhdmi\n");
+			olympus_hdmi_reg = NULL;
+			return PTR_ERR(olympus_hdmi_reg);
+		}
+	}
+	regulator_enable(olympus_hdmi_reg);
+
+	/* Need to also change avdd_hdmi_pll regulator */
+	if (!olympus_hdmi_pll) {
+		olympus_hdmi_pll = regulator_get(NULL, "avdd_hdmi_pll"); /* LD06 */
+		if (IS_ERR_OR_NULL(olympus_hdmi_pll)) {
+			pr_err("hdmi: couldn't get regulator avdd_hdmi_pll\n");
+			olympus_hdmi_pll = NULL;
+			regulator_disable(olympus_hdmi_reg);
+			olympus_hdmi_reg = NULL;
+			return PTR_ERR(olympus_hdmi_pll);
+		}
+	}
+	regulator_enable(olympus_hdmi_pll);
+	return 0;
+}
+
+static int olympus_hdmi_disable(void)
+{
+	if (olympus_hdmi_reg)
+		regulator_disable(olympus_hdmi_reg);
+	if (olympus_hdmi_pll)
+		regulator_disable(olympus_hdmi_pll);
+	return 0;
+}
+
 static struct tegra_dc_out olympus_disp2_out = {
 	.type = TEGRA_DC_OUT_HDMI,
 	.flags = TEGRA_DC_OUT_HOTPLUG_HIGH,
@@ -394,8 +463,13 @@ static struct tegra_dc_out olympus_disp2_out = {
 	.dcc_bus = 1,
 	.hotplug_gpio = TEGRA_GPIO_PN7,
 
+	.max_pixclock	= KHZ2PICOS(148500),
+
 	.align = TEGRA_DC_ALIGN_MSB,
 	.order = TEGRA_DC_ORDER_RED_BLUE,
+
+	.enable		= olympus_hdmi_enable,
+	.disable	= olympus_hdmi_disable,
 };
 
 static struct tegra_fb_data olympus_disp2_fb_data = {
@@ -461,14 +535,26 @@ struct early_suspend olympus_panel_early_suspender;
 
 static void olympus_panel_early_suspend(struct early_suspend *h)
 {
-	if (num_registered_fb > 0)
-		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
+	int i;
+	for (i = 0; i < num_registered_fb; i++)
+		fb_blank(registered_fb[i], FB_BLANK_POWERDOWN);
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_save_default_governor();
+	cpufreq_set_conservative_governor();
+	cpufreq_set_conservative_governor_param(
+		SET_CONSERVATIVE_GOVERNOR_UP_THRESHOLD,
+		SET_CONSERVATIVE_GOVERNOR_DOWN_THRESHOLD);
+#endif
 }
 
 static void olympus_panel_late_resume(struct early_suspend *h)
 {
-	if (num_registered_fb > 0)
-		fb_blank(registered_fb[0], FB_BLANK_UNBLANK);
+	int i;
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_restore_default_governor();
+#endif
+	for (i = 0; i < num_registered_fb; i++)
+		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
 }
 #endif
 
@@ -511,16 +597,17 @@ int __init olympus_panel_init(void)
 		IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb_start;
 	res->end = tegra_fb_start + tegra_fb_size - 1;
-#endif
 
-#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
+	if (tegra_bootloader_fb_start) {
+	printk(KERN_INFO "pICS_%s: move framebuffer...",__func__);
+	tegra_move_framebuffer(tegra_fb_start,tegra_bootloader_fb_start,
+			min(tegra_fb_size, tegra_bootloader_fb_size));
+	}
+
 	res = nvhost_get_resource_byname(&olympus_disp2_device,
 		IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
-
-	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
-		min(tegra_fb_size, tegra_bootloader_fb_size));
 
 	if (!err)
 		err = nvhost_device_register(&olympus_disp1_device);
