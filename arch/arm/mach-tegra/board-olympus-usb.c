@@ -60,17 +60,6 @@
 #include <linux/usb/android_composite.h>
 #endif
 
-#define BOOT_MODE_MAX_LEN 30
-static char boot_mode[BOOT_MODE_MAX_LEN + 1];
-int __init board_boot_mode_init(char *s)
-{
-	strncpy(boot_mode, s, BOOT_MODE_MAX_LEN);
-	boot_mode[BOOT_MODE_MAX_LEN] = '\0';
-	printk(KERN_INFO "boot_mode=%s\n", boot_mode);
-	return 1;
-}
-__setup("androidboot.mode=", board_boot_mode_init);
-
 #define USB_MANUFACTURER_NAME	"Motorola"
 #define USB_PRODUCT_NAME	"Atrix 4G"
 #define BLUE_PID		0x0CD9
@@ -91,18 +80,6 @@ static struct android_usb_platform_data android_usb_pdata = {
 //	.usb_id_pin_gpio = TEGRA_GPIO_PS2,
 //	.RndisDisableMPDecision = true,
 	.nluns = 2,
-};
-
-static struct android_usb_platform_data android_usb_bp_pdata = {
-	.vendor_id = 0x22b8,
-	.product_id = 0x7094,
-	.manufacturer_name = "Motorola",
-	.serial_number = "0000",
-	.num_products = ARRAY_SIZE(bp_usb_products),
-	.products = bp_usb_products,
-	.num_functions = ARRAY_SIZE(bp_usb_functions_all),
-	.functions = bp_usb_functions_all,
-
 };
 
 static struct platform_device android_usb_device = {
@@ -167,9 +144,9 @@ static struct tegra_usb_platform_data tegra_udc_pdata = {
 	.phy_intf = TEGRA_USB_PHY_INTF_UTMI,
 	.op_mode = TEGRA_USB_OPMODE_DEVICE,
 	.u_data.dev = {
-		.vbus_pmu_irq = 0,
-		.vbus_gpio = -1,
-		.charging_supported = false,
+		//.vbus_pmu_irq = -1,
+		.vbus_gpio = TEGRA_GPIO_PV6,
+		.charging_supported = true,
 		.remote_wakeup_supported = false,
 	},
 	.u_cfg.utmi = {
@@ -190,8 +167,8 @@ static struct tegra_usb_platform_data tegra_ehci1_utmi_pdata = {
 	.op_mode = TEGRA_USB_OPMODE_HOST,
 	.u_data.host = {
 		.vbus_gpio = -1,
-		.vbus_reg = NULL,
-//		.vbus_reg = "vusb",
+//		.vbus_reg = NULL,
+		.vbus_reg = "vusb",
 		.hot_plug = true,
 		.remote_wakeup_supported = false,
 		.power_off_on_suspend = true,
@@ -308,17 +285,11 @@ void olympus_usb_init(void)
 		android_usb_pdata.serial_number = kstrdup(serial, GFP_KERNEL);
 
 	android_usb_pdata.product_name = olympus_dev;
-	android_usb_bp_pdata.product_name = olympus_dev;
 	tegra_usb_fsg_platform.product = olympus_dev;
 
-	if (!strncmp(boot_mode, "bp-tools", BOOT_MODE_MAX_LEN)) {
-		android_usb_device.dev.platform_data = &android_usb_bp_pdata;
-/*		acm_pdata.num_inst = 4;
-		acm_pdata.use_iads = 1;*/
-	}
 
-	tegra_ehci2_device.dev.platform_data = &tegra_ehci2_ulpi_link_pdata;
-	platform_device_register(&tegra_ehci2_device);
+//	tegra_ehci2_device.dev.platform_data = &tegra_ehci2_ulpi_link_pdata;
+//	platform_device_register(&tegra_ehci2_device);
 
 	tegra_ehci3_device.dev.platform_data = &tegra_ehci3_utmi_pdata;
 	platform_device_register(&tegra_ehci3_device);

@@ -389,6 +389,9 @@ int tegra_pcm_dma_allocate(struct snd_soc_pcm_runtime *rtd, size_t size)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
+/*Olympus: Added codec_dai for checking what is present and what is not, 
+		detecting by cpu_dai was not correct*/
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;	
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -397,14 +400,15 @@ int tegra_pcm_dma_allocate(struct snd_soc_pcm_runtime *rtd, size_t size)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->driver->playback.channels_min) {
+	if (codec_dai->driver->playback.channels_min) {		//dai -> codec_dai
 		ret = tegra_pcm_preallocate_dma_buffer(pcm,
 						SNDRV_PCM_STREAM_PLAYBACK,
 						size);
 		if (ret)
 			goto err;
 	}
-	if (dai->driver->capture.channels_min) {
+
+	if (codec_dai->driver->capture.channels_min) {		//dai -> codec_dai
 		ret = tegra_pcm_preallocate_dma_buffer(pcm,
 						SNDRV_PCM_STREAM_CAPTURE,
 						size);
