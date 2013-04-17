@@ -3,6 +3,8 @@
 #include <linux/i2c.h>
 #include "hwrev.h"
 
+extern unsigned int s_MotorolaDispInfo;
+
 extern int __init olympus_kbc_init(void);
 extern void __init olympus_pinmux_init(void);
 extern void __init olympus_audio_init(void);
@@ -14,7 +16,7 @@ extern void __init olympus_keypad_init(void);
 extern void __init olympus_touch_init(void);
 extern void __init olympus_backlight_init(void);
 extern void __init olympus_sensors_init(void);
-extern void __init olympus_cameras_init(void);
+extern void __init olympus_camera_init(void);
 extern void __init olympus_usb_gadget_init(void);
 
 extern int olympus_mdm_ctrl_shutdown(void);
