@@ -296,24 +296,24 @@ static int cpcap_validity_probe(struct platform_device *pdev)
 
 	cpcap_di = pdev->dev.platform_data;
 
-#ifdef CONFIG_BOOTINFO
+//#ifdef CONFIG_BOOTINFO
 	if (bi_powerup_reason() != PU_REASON_CHARGER) {
 		/* Set Kpanic bit, which will be cleared at normal reboot */
 		cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
 				   CPCAP_BIT_AP_KERNEL_PANIC,
 				   CPCAP_BIT_AP_KERNEL_PANIC);
 	}
-#endif
+//#endif
 
 	register_reboot_notifier(&validity_reboot_notifier);
 
-#ifdef CONFIG_MFD_CPCAP_SOFTRESET
+//#ifdef CONFIG_MFD_CPCAP_SOFTRESET
 	/* Enable workaround to allow soft resets to work */
 	cpcap_regacc_write(cpcap_di, CPCAP_REG_PGC,
 			   CPCAP_BIT_SYS_RST_MODE, CPCAP_BIT_SYS_RST_MODE);
 	err = cpcap_uc_start(cpcap_di,CPCAP_BANK_PRIMARY, CPCAP_MACRO_15);
 	dev_info(&pdev->dev, "Started macro 15: %d\n", err);
-#endif
+//#endif
 
 	return err;
 }
@@ -738,46 +738,6 @@ struct cpcap_mode_value *cpcap_regulator_off_mode_values[] = {
 		{0x0000, NULL }
 	},
 };
-
-/* list of regulators */
-#if 0
-  /*-- CPCAP Regulators --*/
-    RegulatorCpcapSupply_SW1,         // cpu            (default = 0.9V)
-    RegulatorCpcapSupply_SW2,         // core           (default = 1.2V)
-    RegulatorCpcapSupply_SW4,         // rtc            (default = 1.2V)
-    RegulatorCpcapSupply_SW5,         // Boost          (default = 5.0V)
-    RegulatorCpcapSupply_SW3,         // VIO            (default = 1.8V)
-    RegulatorCpcapSupply_WLAN2,       // WLAN2          (default = 3.3V)
-    RegulatorCpcapSupply_WLAN1,       // WLAN1          (default = 1.8V)
-    RegulatorCpcapSupply_VAUDIO,      // Audio          (default = 2.775V)
-    RegulatorCpcapSupply_VSIMCARD,    // Sim-Card       (default 2.9V)
-    RegulatorCpcapSupply_VPLL,        // Enable PLL LDO (default = 1.8V)
-    RegulatorCpcapSupply_VHVIO,       // HVIO           (default = 2.775V)
-    RegulatorCpcapSupply_VCAM,        // CAM            (default = 2.9V)
-    RegulatorCpcapSupply_VSDIO,       // SDIO           (default = 2.9V)
-    /*-- LPM8028 Regulator --*/
-    RegulatorPm8028Supply_S1,         // MSMC           (default = 1.1V)
-    RegulatorPm8028Supply_S2,         // RF1            (default = 1.3V)
-    RegulatorPm8028Supply_S3,         // MSME           (default = 1.8V)
-    RegulatorPm8028Supply_S4,         // RF2            (default = 2.2V)
-    RegulatorPm8028Supply_L1,         // GP             (default = 2.05V)
-    RegulatorPm8028Supply_L3,         // GP             (default = 1.2V)
-    RegulatorPm8028Supply_L4,         // QFUSE          (default = 2.6V)
-    RegulatorPm8028Supply_L5,         //                (default = 1.5V)
-    RegulatorPm8028Supply_L6,         // SDCC1          (default = 2.85V)
-    RegulatorPm8028Supply_L7,         // MPLL           (default = 1.1V)
-    RegulatorPm8028Supply_L8,         // USIM           (default = 1.8V)
-    RegulatorPm8028Supply_L9,         // RF_SW          (default = 2.85V)
-    RegulatorPm8028Supply_L10,        // USB            (default = 3.075V)
-    RegulatorPm8028Supply_L11,        // GP             (default = 1.8V)
-    RegulatorPm8028Supply_L13,        // RFA            (default = 2.2V)
-    RegulatorPm8028Supply_L18,        // USB            (default = 1.8V)
-
-    /*-- Misc. Regulators --*/
-    RegulatorMiscSupply_Min,
-    RegulatorMiscSupply_VHDMI = RegulatorMiscSupply_Min, // HDMI  (default = 5.0V)
-    RegulatorMiscSupply_Max   = RegulatorMiscSupply_VHDMI,
-#endif
 
 #define REGULATOR_CONSUMER(name, device) { .supply = name, .dev = device, }
 #define REGULATOR_CONSUMER_BY_DEVICE(name, device) \
@@ -1271,6 +1231,19 @@ void __init olympus_power_init(void)
 	int error;
 	unsigned long pmc_cntrl_0;
 
+	void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
+	void __iomem *chip_id = IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804;
+	u32 minor;
+
+	printk(KERN_INFO "%s: tegra chip uid = %llx\n", __func__, tegra_chip_uid());
+
+	minor = (readl(chip_id) >> 16) & 0xf;
+	/* A03 (but not A03p) chips do not support LP0 */
+	if (minor == 3 && !(tegra_spare_fuse(18) || tegra_spare_fuse(19))) {
+		printk(KERN_INFO "%s: this SoC does not support LP0, switching to LP1\n", __func__);
+		olympus_suspend_data.suspend_mode = TEGRA_SUSPEND_LP1;
+	}
+
 	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
 	 * before the CPCAP uC firmware is started. */
 	pmc_cntrl_0 = readl(IO_ADDRESS(TEGRA_PMC_BASE));
@@ -1318,10 +1291,10 @@ void __init olympus_power_init(void)
 	}
 
 	/* For all machine types, disable watchdog when HWREV is debug, brassboard or mortable */
-	//if (HWREV_TYPE_IS_DEBUG(system_rev) || HWREV_TYPE_IS_BRASSBOARD(system_rev) ||
-	   // HWREV_TYPE_IS_MORTABLE(system_rev) ){
+	if (HWREV_TYPE_IS_DEBUG(system_rev) || HWREV_TYPE_IS_BRASSBOARD(system_rev) ||
+	    HWREV_TYPE_IS_MORTABLE(system_rev) ){
 		tegra_cpcap_data.wdt_disable = 1;
-	//}
+	}
 
 	spi_register_board_info(tegra_spi_devices, ARRAY_SIZE(tegra_spi_devices));
 
